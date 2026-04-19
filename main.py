@@ -124,7 +124,7 @@ def main():
     )
 
     ai = AIEngine(config.get("llm", {}))
-    personality = PersonalityEngine(ai, config.get("personality", {}))
+    personality = PersonalityEngine(ai, config)
     reader = ScreenReader(adb, temp_dir="./logs")
     commenter = CommentAction(adb, reader)
     anti = AntiDetect(config.get("behavior", {}))
@@ -137,8 +137,9 @@ def main():
     console.print(f"[green]连接成功[/green] 分辨率: {adb.screen_width}x{adb.screen_height}")
 
     # 显示配置
-    console.print(f"[bold]人格:[/bold] {personality.description[:50]}...")
-    console.print(f"[bold]风格:[/bold] {personality.style}  [bold]概率:[/bold] {personality.probability*100:.0f}%  [bold]模型:[/bold] {ai._model}")
+    persona_names = ", ".join(f"{p.name}(w{p.weight})" for p in personality.personas)
+    console.print(f"[bold]人设:[/bold] {persona_names}")
+    console.print(f"[bold]模型:[/bold] {ai._model}")
     console.print("[dim]按 Ctrl+C 停止\n[/dim]")
 
     time.sleep(2)
@@ -148,7 +149,9 @@ def main():
     while running:
         try:
             anti.record_video()
-            console.print(f"[bold blue]── 视频 #{anti.stats['videos_watched']} ──[/bold blue]")
+            # 按权重随机选取人设
+            persona = personality.pick_persona()
+            console.print(f"[bold blue]── 视频 #{anti.stats['videos_watched']} [{persona.name}] ──[/bold blue]")
 
             # 1. 提取屏幕内容
             content = reader.capture_and_analyze()
@@ -191,14 +194,14 @@ def main():
                 console.print("[dim]评论频率限制，跳过评论[/dim]")
             else:
                 time.sleep(anti.comment_delay())
-                result = commenter.execute_smart_comment_flow(content.raw_text, personality)
+                result = commenter.execute_smart_comment_flow(content.raw_text, personality, persona)
                 if result["success"]:
                     anti.record_comment()
                     ctype = "回复评论" if result["type"] == "comment" else "评论视频"
                     console.print(f"[green]+ {ctype}成功: {result['comment']}[/green]")
                     recover_to_video_page(adb, reader, console)
                 elif result["type"] == "skip":
-                    console.print(f"[dim]跳过 (无谬误)[/dim]")
+                    console.print(f"[dim]跳过 (不值得评论)[/dim]")
                 else:
                     console.print("[red]x 评论失败[/red]")
                     recover_to_video_page(adb, reader, console)

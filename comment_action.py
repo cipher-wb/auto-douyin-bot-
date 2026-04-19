@@ -90,8 +90,9 @@ class CommentAction:
                 time.sleep(1.0)
             return False
 
-    def execute_smart_comment_flow(self, video_content: str, personality_engine) -> dict:
+    def execute_smart_comment_flow(self, video_content: str, personality_engine, persona=None) -> dict:
         """智能评论流程：打开评论区 → 读取评论 → AI判断谬误 → 评论/回复 → 关闭
+        persona: PersonaConfig 对象，如果为 None 则使用第一个
         返回 {"success": bool, "type": "video"|"comment"|"", "comment": str}
         """
         result = {"success": False, "type": "", "comment": ""}
@@ -112,7 +113,7 @@ class CommentAction:
                 logger.info(f"读取到 {len(comment_items)} 条评论")
 
             # 3. AI 分析（视频内容 + 评论区）是否有谬误
-            decision = personality_engine.analyze_content(video_content, comments_text)
+            decision = personality_engine.analyze_content(video_content, comments_text, persona=persona)
             should = decision.get("should_comment", False)
             target = decision.get("target", "video")
             reason = decision.get("reason", "")
@@ -124,23 +125,34 @@ class CommentAction:
                 result["type"] = "skip"
                 return result
 
+            # 策略过滤：检查人设是否允许该类型的评论
+            if persona:
+                if target == "video" and not persona.target_video:
+                    logger.info(f"人设 [{persona.name}] 不允许评论视频，跳过")
+                    self.close_comments()
+                    result["type"] = "skip"
+                    return result
+                if target == "comment" and not persona.target_comments:
+                    logger.info(f"人设 [{persona.name}] 不允许回复评论，跳过")
+                    self.close_comments()
+                    result["type"] = "skip"
+                    return result
+
             logger.info(f"AI 决定{target}评论: {reason}")
 
             if target == "comment" and target_comment_text and comment_items:
                 # 4a. 楼中楼回复：找到匹配的评论
                 matched = None
                 for c in comment_items:
-                    # 模糊匹配：评论内容的前几个字在 target_comment_text 中
                     if c.content and len(c.content) > 2 and c.content[:8] in target_comment_text:
                         matched = c
                         break
                 if not matched:
-                    # fallback: 用第一条评论
                     matched = comment_items[0]
                     logger.warning(f"未精确匹配评论，使用第一条: {matched.username}")
 
                 reply = personality_engine.generate_comment(
-                    video_content, target_comment=matched.content
+                    video_content, target_comment=matched.content, persona=persona
                 )
                 if reply and len(reply) >= 3:
                     logger.info(f"回复 @{matched.username}: {reply}")
@@ -150,7 +162,7 @@ class CommentAction:
                     logger.warning("生成的回复太短，跳过")
             else:
                 # 4b. 回复视频（顶级评论）
-                comment = personality_engine.generate_comment(video_content)
+                comment = personality_engine.generate_comment(video_content, persona=persona)
                 if comment and len(comment) >= 3:
                     logger.info(f"评论视频: {comment}")
                     success = self.post_comment(comment)

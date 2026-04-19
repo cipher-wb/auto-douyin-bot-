@@ -1,37 +1,112 @@
+# ============================================================
 # 抖音 AI 自动浏览评论工具 - 配置文件
-# 复制此文件为 config.yaml 并填入你的信息
+# ============================================================
+# 使用方法：复制本文件为 config.yaml，然后修改下面的内容
+# 命令：cp config.yaml.example config.yaml
+# ============================================================
 
+# ==================== 模拟器设置 ====================
 emulator:
-  adb_path: "adb"                    # ADB 路径，MuMu 示例: "D:/Program Files/Netease/MuMu/nx_device/12.0/shell/adb.exe"
+  # ADB 程序路径
+  # 如果你用的是 MuMu 模拟器，通常在这个位置（改成你自己的路径）：
+  # "D:/Program Files/Netease/MuMu/nx_device/12.0/shell/adb.exe"
+  # 如果 ADB 已经加入系统环境变量，直接填 "adb" 就行
+  adb_path: "adb"
+  # 模拟器的连接地址（一般不用改）
   host: "127.0.0.1"
-  port: 16384                        # MuMu 12 默认端口
+  # MuMu 12 默认端口是 16384，其他模拟器可能是 7555 或 5555
+  port: 16384
 
+# ==================== AI 大模型设置 ====================
+# 目前支持两种模型，选一个填入 API Key 就能用
+# 修改下面的 provider 来切换用哪个模型：
+#   "minimax" → MiniMax（推荐，便宜好用）
+#   "glm"     → 智谱 GLM
 llm:
-  provider: "minimax"                # 可选: glm / minimax
+  provider: "minimax"
   glm:
+    # 智谱开放平台 API Key（去 https://open.bigmodel.cn 申请）
     api_key: "YOUR_GLM_API_KEY"
     model: "glm-5.1"
     base_url: "https://open.bigmodel.cn/api/paas/v4"
   minimax:
+    # MiniMax API Key（去 https://platform.minimaxi.com 申请）
     api_key: "YOUR_MINIMAX_API_KEY"
     model: "MiniMax-M2.7-highspeed"
     base_url: "https://api.minimaxi.com/v1"
 
+# ==================== 视觉识别（暂未启用）====================
 vision:
   enabled: false
   model: "glm-4v-flash"
   api_key: ""
 
-personality:
-  description: "你是一个暴躁老哥，看什么都不顺眼，嘴毒心热。对逻辑错误零容忍，对装逼行为嗤之以鼻。说话直来直去不绕弯，偶尔带点黑色幽默。"
-  comment_style: "犀利毒舌"
-  comment_probability: 0.25
-  trigger: "只回复存在逻辑谬误、事实错误或价值观问题的内容"
+# ==================== 人设配置 ====================
+# 你可以定义多个人设，程序会按权重随机选择
+# 权重(weight)越大，这个人设越常被选中
+# 比如 3:2:1 表示大约 50% 用暴躁老哥，33% 用理性科普，17% 用暖心鼓励
+#
+# 每个人设的字段说明：
+#   name              - 人设名称（在日志里显示）
+#   identity          - 身份描述（告诉 AI 它是谁）
+#   style             - 评论风格（如"犀利毒舌"、"温和理性"）
+#   weight            - 权重（数字越大越常被选中）
+#   topics.keywords   - 关键词过滤（只有视频包含这些词才会触发评论，留空 [] 表示不限话题）
+#   topics.ai_trigger - AI 判断提示（告诉 AI 什么情况下才值得评论）
+#   strategy.target_video     - 是否评论视频（true/false）
+#   strategy.target_comments  - 是否回复别人的评论（true/false）
+#   strategy.comment_probability - 评论概率（0.3 = 30% 的视频会尝试评论）
 
+personas:
+  # ---- 人设 1：暴躁老哥 ----
+  - name: "暴躁老哥"
+    identity: "你是一个暴躁老哥，看什么都不顺眼，嘴毒心热。对逻辑错误零容忍，对装逼行为嗤之以鼻。说话直来直去不绕弯，偶尔带点黑色幽默。"
+    style: "犀利毒舌"
+    weight: 3                                    # 权重 3（最常出现）
+    topics:
+      keywords: ["伪科学", "谣言", "以偏概全", "偷换概念"]  # 遇到这些话题才触发
+      ai_trigger: "看到逻辑谬误、事实错误或价值观问题时反驳纠正，遇到好内容也可以毒舌夸"
+    strategy:
+      target_video: true                         # 允许评论视频
+      target_comments: true                      # 允许回复评论（楼中楼）
+      comment_probability: 0.5                   # 50% 概率尝试评论
+
+  # ---- 人设 2：理性科普 ----
+  - name: "理性科普"
+    identity: "你是一个理工科背景的科普爱好者，看到常识性错误就忍不住纠正。语气平和但有理有据，喜欢用数据和事实说话。"
+    style: "理性严谨"
+    weight: 2                                    # 权重 2
+    topics:
+      keywords: ["科学", "物理", "化学", "医学", "实验", "研究"]  # 科学类话题
+      ai_trigger: "发现科学性错误时纠正，看到优质科普内容时也可以表扬"
+    strategy:
+      target_video: true
+      target_comments: true
+      comment_probability: 0.4                   # 40% 概率
+
+  # ---- 人设 3：暖心鼓励 ----
+  - name: "暖心鼓励"
+    identity: "你是一个温暖的姐姐，看到努力的人就想鼓励一下。说话温柔真诚，偶尔带点俏皮。擅长发现视频中的闪光点。"
+    style: "温柔真诚"
+    weight: 1                                    # 权重 1（最少出现）
+    topics:
+      keywords: []                               # 留空 = 不限话题，任何视频都可能评论
+      ai_trigger: "看到令人感动或努力生活的内容时给予鼓励"
+    strategy:
+      target_video: true
+      target_comments: false                     # 不回复别人的评论
+      comment_probability: 0.5
+
+# ==================== 行为参数 ====================
 behavior:
-  swipe_interval_min: 3
-  swipe_interval_max: 10
-  max_comments_per_hour: 8
-  like_probability: 0.15
-  comment_delay_min: 3
-  comment_delay_max: 8
+  # 刷视频的间隔时间（秒）
+  # 程序会在这个范围内随机等待，模拟真人看视频
+  swipe_interval_min: 3                          # 最短看 3 秒
+  swipe_interval_max: 10                         # 最长看 10 秒
+  # 评论频率限制
+  max_comments_per_hour: 10                      # 每小时最多评论 10 条（防止被封号）
+  # 点赞
+  like_probability: 0.15                         # 15% 概率随机点赞
+  # 评论前的等待时间（秒）
+  comment_delay_min: 3                           # 最短等 3 秒再评论
+  comment_delay_max: 8                           # 最长等 8 秒
