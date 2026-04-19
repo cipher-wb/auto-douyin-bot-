@@ -96,7 +96,8 @@ personas:
 behavior:
   swipe_interval_min: 3
   swipe_interval_max: 10
-  max_comments_per_hour: 10
+  max_comments_per_hour: 20
+  min_comment_interval: 120
   like_probability: 0.15
   comment_delay_min: 3
   comment_delay_max: 8
