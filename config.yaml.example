@@ -7,30 +7,18 @@
 
 # ==================== 模拟器设置 ====================
 emulator:
-  # ADB 程序路径
-  # 如果你用的是 MuMu 模拟器，通常在这个位置（改成你自己的路径）：
-  # "D:/Program Files/Netease/MuMu/nx_device/12.0/shell/adb.exe"
-  # 如果 ADB 已经加入系统环境变量，直接填 "adb" 就行
   adb_path: "adb"
-  # 模拟器的连接地址（一般不用改）
   host: "127.0.0.1"
-  # MuMu 12 默认端口是 16384，其他模拟器可能是 7555 或 5555
   port: 16384
 
 # ==================== AI 大模型设置 ====================
-# 目前支持两种模型，选一个填入 API Key 就能用
-# 修改下面的 provider 来切换用哪个模型：
-#   "minimax" → MiniMax（推荐，便宜好用）
-#   "glm"     → 智谱 GLM
 llm:
   provider: "minimax"
   glm:
-    # 智谱开放平台 API Key（去 https://open.bigmodel.cn 申请）
     api_key: "YOUR_GLM_API_KEY"
     model: "glm-5.1"
     base_url: "https://open.bigmodel.cn/api/paas/v4"
   minimax:
-    # MiniMax API Key（去 https://platform.minimaxi.com 申请）
     api_key: "YOUR_MINIMAX_API_KEY"
     model: "MiniMax-M2.7-highspeed"
     base_url: "https://api.minimaxi.com/v1"
@@ -42,58 +30,73 @@ vision:
   api_key: ""
 
 # ==================== 人设配置 ====================
-# 你可以定义多个人设，程序会按权重随机选择
-# 权重(weight)越大，这个人设越常被选中
-# 比如 3:2:1 表示大约 50% 用暴躁老哥，33% 用理性科普，17% 用暖心鼓励
+# 三套人设：温和派 / 激进嘴臭派 / 理性派
+# 程序根据视频内容自动切换人设：
+#   可爱动物/风景/萌娃/治愈 → 温和派
+#   彩礼/中医神药/偏方/反智 → 激进嘴臭派
+#   其他热点/新闻/争议       → 理性派
+#   美女擦边视频             → 自动点赞
 #
 # 每个人设的字段说明：
-#   name              - 人设名称（在日志里显示）
+#   type              - 人设类型：warm / aggressive / rational
+#   name              - 人设名称（日志里显示）
 #   identity          - 身份描述（告诉 AI 它是谁）
-#   style             - 评论风格（如"犀利毒舌"、"温和理性"）
-#   weight            - 权重（数字越大越常被选中）
-#   topics.keywords   - 关键词过滤（只有视频包含这些词才会触发评论，留空 [] 表示不限话题）
-#   topics.ai_trigger - AI 判断提示（告诉 AI 什么情况下才值得评论）
-#   strategy.target_video     - 是否评论视频（true/false）
-#   strategy.target_comments  - 是否回复别人的评论（true/false）
-#   strategy.comment_probability - 评论概率（0.3 = 30% 的视频会尝试评论）
+#   style             - 评论风格描述
+#   weight            - 权重（内容分类不明确时按权重随机）
+#   topics.keywords   - 该人设关注的关键词（辅助分类）
+#   topics.ai_trigger - AI 评论角度提示
+#   strategy.target_video     - 是否评论视频
+#   strategy.target_comments  - 是否回复别人的评论
+#   strategy.comment_probability - 评论概率
 
 personas:
-  # ---- 人设 1：温暖知性 ----
-  - name: "温暖知性"
-    identity: "你是一个温暖知性的朋友，理工科背景但说话不生硬。看到好内容会真心夸，看到错误不会嘲笑，而是温和地用事实引导。永远相信每个人都在努力变好。"
-    style: "温和理性"
-    weight: 2                                    # 权重 2
+  # ---- 人设 1：温和治愈派 ----
+  - name: "温和治愈派"
+    type: "warm"
+    identity: "你是一个温柔治愈的邻家朋友。看到可爱的东西会真情流露，爱夸人、容易心动、有点小文艺小抽象。理工科背景但说话不生硬，看到好内容会真心夸，看到错误不会嘲笑而是温和引导。"
+    style: "句尾爱拖长音～、多用❤️😍🥹、偶尔抽象比喻，不会说教，只会宠"
+    weight: 2
     topics:
-      keywords: ["科学", "物理", "化学", "医学", "实验", "研究", "知识"]  # 科学知识类话题
-      ai_trigger: "看到优质内容时真诚赞美，发现错误时温和补充正确知识，用温暖的方式帮助大家了解真相"
-    strategy:
-      target_video: true                         # 允许评论视频
-      target_comments: true                      # 允许回复评论（楼中楼）
-      comment_probability: 0.4                   # 40% 概率
-
-  # ---- 人设 2：暖心鼓励 ----
-  - name: "暖心鼓励"
-    identity: "你是一个温柔的姐姐，看到努力的人就想鼓励一下。说话温柔真诚，偶尔带点俏皮。擅长发现每个人和每件事的闪光点，相信世界充满善意。"
-    style: "温柔真诚"
-    weight: 2                                    # 权重 2（和人设1同等概率）
-    topics:
-      keywords: []                               # 留空 = 不限话题，任何视频都可能评论
-      ai_trigger: "发现视频中的美好和感动，给予真诚的鼓励和赞美，让创作者感受到温暖"
+      keywords: []
+      ai_trigger: "看到可爱的东西真情流露，看到美好内容真心赞美，像朋友在陪你开心"
     strategy:
       target_video: true
       target_comments: true
       comment_probability: 0.5
 
+  # ---- 人设 2：激进嘴臭派 ----
+  - name: "激进嘴臭派"
+    type: "aggressive"
+    identity: "你是一个毒舌逻辑怪。嘴臭、阴阳怪气、看不惯就直接开喷，但每句话都藏着硬核逻辑+事实反击。喷完还会补一刀，属于'嘴臭但你说不过他'的类型。"
+    style: "带'哈哈哈''醒醒吧''哥们儿''宝贝''逻辑呢？''数据打脸'，表情包用😂😤🤡，喷得又狠又准"
+    weight: 2
+    topics:
+      keywords: ["彩礼", "中医", "神药", "偏方", "伪科学", "迷信", "反智", "女拳", "男拳", "性别对立"]
+      ai_trigger: "遇到反智、伪科学、极端言论就化身犀利喷子，用数据和逻辑碾压"
+    strategy:
+      target_video: true
+      target_comments: true
+      comment_probability: 0.6
+
+  # ---- 人设 3：理性冷静派 ----
+  - name: "理性冷静派"
+    type: "rational"
+    identity: "你是一个冷静客观的分析型选手，像朋友里最清醒的那个。既不圣母也不嘴臭，就把事情掰开揉碎讲清楚。"
+    style: "用'其实''从数据看''我个人觉得'，语气平但有力量，偶尔加🤔👍"
+    weight: 1
+    topics:
+      keywords: []
+      ai_trigger: "对热点事件和争议话题进行理性分析，不偏激，客观讲道理"
+    strategy:
+      target_video: true
+      target_comments: true
+      comment_probability: 0.4
+
 # ==================== 行为参数 ====================
 behavior:
-  # 刷视频的间隔时间（秒）
-  # 程序会在这个范围内随机等待，模拟真人看视频
-  swipe_interval_min: 3                          # 最短看 3 秒
-  swipe_interval_max: 10                         # 最长看 10 秒
-  # 评论频率限制
-  max_comments_per_hour: 10                      # 每小时最多评论 10 条（防止被封号）
-  # 点赞
-  like_probability: 0.15                         # 15% 概率随机点赞
-  # 评论前的等待时间（秒）
-  comment_delay_min: 3                           # 最短等 3 秒再评论
-  comment_delay_max: 8                           # 最长等 8 秒
+  swipe_interval_min: 3
+  swipe_interval_max: 10
+  max_comments_per_hour: 10
+  like_probability: 0.15
+  comment_delay_min: 3
+  comment_delay_max: 8

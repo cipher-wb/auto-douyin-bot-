@@ -150,9 +150,6 @@ def main():
     while running:
         try:
             anti.record_video()
-            # 按权重随机选取人设
-            persona = personality.pick_persona()
-            console.print(f"[bold blue]── 视频 #{anti.stats['videos_watched']} [{persona.name}] ──[/bold blue]")
 
             # 1. 提取屏幕内容
             content = reader.capture_and_analyze()
@@ -190,7 +187,18 @@ def main():
             display_text = content.raw_text[:120].replace("\n", " | ")
             console.print(f"[cyan]内容:[/cyan] {display_text}")
 
-            # 2. 评论流程
+            # 2. 内容分类 + 自动选择人设
+            content_type = personality.classify_content(content.raw_text)
+            persona = personality.select_persona_by_type(content_type)
+            console.print(f"[bold blue]── 视频 #{anti.stats['videos_watched']} [{persona.name}] ({content_type}) ──[/bold blue]")
+
+            # 3. 美女擦边视频自动点赞
+            if content_type == "beauty" and "未点赞" in content.raw_text:
+                adb.tap_like_button()
+                anti.record_like()
+                console.print("[magenta]♥ 美女视频自动点赞[/magenta]")
+
+            # 4. 评论流程
             videos_since_last_comment += 1
             force_comment = videos_since_last_comment >= 3  # 连续3个视频没评论就强制评论
 
@@ -227,13 +235,13 @@ def main():
                     console.print("[red]x 评论失败[/red]")
                     recover_to_video_page(adb, reader, console)
 
-            # 3. 随机点赞
+            # 5. 随机点赞
             if anti.should_like():
                 adb.tap_like_button()
                 anti.record_like()
                 console.print("[dim]+ 点赞[/dim]")
 
-            # 4. 等待 + 切换视频
+            # 6. 等待 + 切换视频
             delay = anti.swipe_delay()
             console.print(f"[dim]等待 {delay:.1f}s 后切换...[/dim]\n")
             time.sleep(delay)
