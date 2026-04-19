@@ -2,6 +2,7 @@
 
 import sys
 import os
+import re
 import time
 import signal
 import logging
@@ -67,6 +68,26 @@ def print_stats(anti: AntiDetect):
     for k, v in stats.items():
         table.add_row(k, str(v))
     console.print(table)
+
+
+def clean_video_text(raw_text: str) -> str:
+    """清理 UI 元数据，只保留视频内容文字供 AI 分析"""
+    UI_NOISE = ["未点赞", "喜欢", "评论", "收藏", "分享", "按钮", "拍同款",
+                "音乐", "发弹幕", "未选中", "听抖音", "听合集", "创建的原声"]
+    parts = raw_text.replace("\n", " | ").split("|")
+    meaningful = []
+    for p in parts:
+        p = p.strip()
+        if not p:
+            continue
+        if p in ("视频", "关注"):
+            continue
+        if any(kw in p for kw in UI_NOISE):
+            continue
+        if re.match(r'^[\d.]+万?$', p):
+            continue
+        meaningful.append(p)
+    return " ".join(meaningful)
 
 
 def is_on_video_page(content_text: str) -> bool:
@@ -187,8 +208,13 @@ def main():
             display_text = content.raw_text[:120].replace("\n", " | ")
             console.print(f"[cyan]内容:[/cyan] {display_text}")
 
-            # 2. 内容分类 + 自动选择人设
-            content_type = personality.classify_content(content.raw_text)
+            # 2. 清理 UI 噪音，提取纯内容（供 AI 使用）
+            clean_text = clean_video_text(content.raw_text)
+            if clean_text:
+                console.print(f"[dim]AI内容: {clean_text[:80]}[/dim]")
+
+            # 3. 内容分类 + 自动选择人设
+            content_type = personality.classify_content(clean_text or content.raw_text)
             persona = personality.select_persona_by_type(content_type)
             console.print(f"[bold blue]── 视频 #{anti.stats['videos_watched']} [{persona.name}] ({content_type}) ──[/bold blue]")
 
@@ -200,7 +226,8 @@ def main():
 
             # 4. 评论流程
             videos_since_last_comment += 1
-            force_comment = videos_since_last_comment >= 3  # 连续3个视频没评论就强制评论
+            force_comment = videos_since_last_comment >= 3
+            ai_text = clean_text or content.raw_text  # AI 用清理后的文本
 
             if not anti.can_comment():
                 console.print("[dim]评论频率限制，跳过评论[/dim]")
@@ -208,7 +235,7 @@ def main():
                 # 强制评论：跳过 AI 判断，直接生成并发布
                 console.print("[yellow]已刷3条未评论，强制评论[/yellow]")
                 time.sleep(anti.comment_delay())
-                comment = personality.generate_comment(content.raw_text, persona=persona)
+                comment = personality.generate_comment(ai_text, persona=persona)
                 if comment and len(comment) >= 3:
                     console.print(f"[bold green]评论: {comment}[/bold green]")
                     success = commenter.execute_comment_flow(comment)
@@ -222,7 +249,7 @@ def main():
             else:
                 # 智能评论：AI 决定评论角度并执行
                 time.sleep(anti.comment_delay())
-                result = commenter.execute_smart_comment_flow(content.raw_text, personality, persona)
+                result = commenter.execute_smart_comment_flow(ai_text, personality, persona)
                 if result["success"]:
                     anti.record_comment()
                     videos_since_last_comment = 0
