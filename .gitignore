@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+logs/
+*.png
+*.xml
+.env
+config.yaml

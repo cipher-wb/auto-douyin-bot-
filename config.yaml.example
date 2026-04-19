@@ -1,0 +1,37 @@
+# 抖音 AI 自动浏览评论工具 - 配置文件
+# 复制此文件为 config.yaml 并填入你的信息
+
+emulator:
+  adb_path: "adb"                    # ADB 路径，MuMu 示例: "D:/Program Files/Netease/MuMu/nx_device/12.0/shell/adb.exe"
+  host: "127.0.0.1"
+  port: 16384                        # MuMu 12 默认端口
+
+llm:
+  provider: "minimax"                # 可选: glm / minimax
+  glm:
+    api_key: "YOUR_GLM_API_KEY"
+    model: "glm-5.1"
+    base_url: "https://open.bigmodel.cn/api/paas/v4"
+  minimax:
+    api_key: "YOUR_MINIMAX_API_KEY"
+    model: "MiniMax-M2.7-highspeed"
+    base_url: "https://api.minimaxi.com/v1"
+
+vision:
+  enabled: false
+  model: "glm-4v-flash"
+  api_key: ""
+
+personality:
+  description: "你是一个暴躁老哥，看什么都不顺眼，嘴毒心热。对逻辑错误零容忍，对装逼行为嗤之以鼻。说话直来直去不绕弯，偶尔带点黑色幽默。"
+  comment_style: "犀利毒舌"
+  comment_probability: 0.25
+  trigger: "只回复存在逻辑谬误、事实错误或价值观问题的内容"
+
+behavior:
+  swipe_interval_min: 3
+  swipe_interval_max: 10
+  max_comments_per_hour: 8
+  like_probability: 0.15
+  comment_delay_min: 3
+  comment_delay_max: 8
