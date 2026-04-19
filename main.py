@@ -145,6 +145,7 @@ def main():
     time.sleep(2)
 
     last_content_hash = ""
+    videos_since_last_comment = 0  # 距上次评论刷了几个视频
 
     while running:
         try:
@@ -189,19 +190,39 @@ def main():
             display_text = content.raw_text[:120].replace("\n", " | ")
             console.print(f"[cyan]内容:[/cyan] {display_text}")
 
-            # 2. 智能评论流程（AI 判断是否有谬误，支持楼中楼）
+            # 2. 评论流程
+            videos_since_last_comment += 1
+            force_comment = videos_since_last_comment >= 3  # 连续3个视频没评论就强制评论
+
             if not anti.can_comment():
                 console.print("[dim]评论频率限制，跳过评论[/dim]")
+            elif force_comment:
+                # 强制评论：跳过 AI 判断，直接生成并发布
+                console.print("[yellow]已刷3条未评论，强制评论[/yellow]")
+                time.sleep(anti.comment_delay())
+                comment = personality.generate_comment(content.raw_text, persona=persona)
+                if comment and len(comment) >= 3:
+                    console.print(f"[bold green]评论: {comment}[/bold green]")
+                    success = commenter.execute_comment_flow(comment)
+                    if success:
+                        anti.record_comment()
+                        videos_since_last_comment = 0
+                        console.print("[green]+ 评论成功[/green]")
+                    recover_to_video_page(adb, reader, console)
+                else:
+                    console.print("[dim]生成的评论太短，跳过[/dim]")
             else:
+                # 智能评论：AI 决定评论角度并执行
                 time.sleep(anti.comment_delay())
                 result = commenter.execute_smart_comment_flow(content.raw_text, personality, persona)
                 if result["success"]:
                     anti.record_comment()
+                    videos_since_last_comment = 0
                     ctype = "回复评论" if result["type"] == "comment" else "评论视频"
                     console.print(f"[green]+ {ctype}成功: {result['comment']}[/green]")
                     recover_to_video_page(adb, reader, console)
                 elif result["type"] == "skip":
-                    console.print(f"[dim]跳过 (不值得评论)[/dim]")
+                    console.print("[dim]人设策略限制，跳过[/dim]")
                 else:
                     console.print("[red]x 评论失败[/red]")
                     recover_to_video_page(adb, reader, console)

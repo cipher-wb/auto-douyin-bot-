@@ -5,3 +5,6 @@ logs/
 *.xml
 .env
 config.yaml
+.ralph/
+libs/
+tasks/

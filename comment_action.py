@@ -112,33 +112,24 @@ class CommentAction:
                 comments_text = "\n".join(lines)
                 logger.info(f"读取到 {len(comment_items)} 条评论")
 
-            # 3. AI 分析（视频内容 + 评论区）是否有谬误
+            # 3. AI 分析：决定评论角度和目标
             decision = personality_engine.analyze_content(video_content, comments_text, persona=persona)
-            should = decision.get("should_comment", False)
             target = decision.get("target", "video")
-            reason = decision.get("reason", "")
+            angle = decision.get("angle", "自由发挥")
             target_comment_text = decision.get("target_comment", "")
-
-            if not should:
-                logger.info(f"AI 跳过: {reason}")
-                self.close_comments()
-                result["type"] = "skip"
-                return result
 
             # 策略过滤：检查人设是否允许该类型的评论
             if persona:
-                if target == "video" and not persona.target_video:
-                    logger.info(f"人设 [{persona.name}] 不允许评论视频，跳过")
-                    self.close_comments()
-                    result["type"] = "skip"
-                    return result
                 if target == "comment" and not persona.target_comments:
-                    logger.info(f"人设 [{persona.name}] 不允许回复评论，跳过")
+                    target = "video"
+                    target_comment_text = ""
+                    logger.info(f"人设 [{persona.name}] 不允许回复评论，改为评论视频")
+                if target == "video" and not persona.target_video:
                     self.close_comments()
                     result["type"] = "skip"
                     return result
 
-            logger.info(f"AI 决定{target}评论: {reason}")
+            logger.info(f"AI 决定{target}评论，角度: {angle}")
 
             if target == "comment" and target_comment_text and comment_items:
                 # 4a. 楼中楼回复：找到匹配的评论
@@ -162,7 +153,9 @@ class CommentAction:
                     logger.warning("生成的回复太短，跳过")
             else:
                 # 4b. 回复视频（顶级评论）
-                comment = personality_engine.generate_comment(video_content, persona=persona)
+                comment = personality_engine.generate_comment(
+                    video_content, existing_comments=comments_text, persona=persona, angle=angle
+                )
                 if comment and len(comment) >= 3:
                     logger.info(f"评论视频: {comment}")
                     success = self.post_comment(comment)
