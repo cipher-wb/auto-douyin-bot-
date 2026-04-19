@@ -186,12 +186,33 @@ class ADBController:
         time.sleep(1.0)
 
     def tap_comment_send(self):
-        """点击发送按钮"""
-        # UI dump 坐标系为 2560x1440（横屏），发送按钮在右下区域
-        x = 2474 + random.randint(-8, 8)
-        y = 1305 + random.randint(-5, 5)
-        self._run(f"shell input tap {x} {y}")
-        time.sleep(1.0)
+        """点击发送按钮（通过 UI dump 动态查找）"""
+        import xml.etree.ElementTree as ET
+        try:
+            self._run("shell uiautomator dump /sdcard/ui_send.xml")
+            self._run("pull /sdcard/ui_send.xml logs/ui_send.xml")
+            with open("logs/ui_send.xml", "rb") as f:
+                root = ET.fromstring(f.read().decode("utf-8"))
+            for node in root.iter():
+                text = node.get("text", "")
+                desc = node.get("content-desc", "")
+                # 发送按钮通常有 text="发送" 或 content-desc 包含"发送"
+                if text == "发送" or "发送" in desc:
+                    bounds = node.get("bounds", "")
+                    import re
+                    nums = re.findall(r'\d+', bounds)
+                    if len(nums) == 4:
+                        x = (int(nums[0]) + int(nums[2])) // 2
+                        y = (int(nums[1]) + int(nums[3])) // 2
+                        self._run(f"shell input tap {x + random.randint(-5, 5)} {y + random.randint(-5, 5)}")
+                        time.sleep(1.0)
+                        return
+        except Exception as e:
+            logger.warning(f"UI dump 查找发送按钮失败: {e}")
+        # Fallback: 尝试多个位置
+        for x, y in [(2474, 1305), (2450, 1330), (2490, 1280)]:
+            self._run(f"shell input tap {x + random.randint(-5, 5)} {y + random.randint(-5, 5)}")
+            time.sleep(0.5)
 
     def tap_reply_button(self, x: int, y: int):
         """点击某条评论的回复按钮"""
